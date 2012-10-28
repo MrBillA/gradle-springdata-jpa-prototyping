@@ -1,0 +1,2 @@
+println "Output directory: $sourceSets.main.output.classesDir"
+println "Output directory2: $sourceSets['main'].output.classesDir"

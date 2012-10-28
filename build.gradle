@@ -1,0 +1,144 @@
+/*
+ *  Derived from Spring Data Jpa example located at:
+ *      https://github.com/SpringSource/spring-data-jpa-examples/tree/master/spring-data-jpa-showcase
+ */
+
+description = 'Simple Spring App'
+
+apply plugin: 'base'
+apply plugin: 'idea'
+
+subprojects { subproject ->
+
+	apply plugin: 'java'
+	apply plugin: 'idea'
+
+    group = 'com.thomsonreuters.jpa.example'
+    version = "$version"
+
+    sourceCompatibility=1.6
+	targetCompatibility=1.6
+
+    sourceSets {
+        main {
+            java {
+                srcDirs = ['src/main/java', 'src/snippets/java']
+            }
+            resources {
+                srcDirs = ['src/main/resources', 'src/snippets/resources']
+            }
+        }
+        test {
+            java {
+                srcDirs = ['src/test/java', 'src/test-snippets/java']
+            }
+            resources {
+                srcDirs = ['src/test/resources']
+            }
+        }
+    }
+
+    sourceSets.all {
+        println name
+    }
+
+    repositories {
+        mavenCentral()
+    }
+
+    // common dependencies
+	dependencies {
+		compile("log4j:log4j:$log4jVersion")  {
+            exclude group: "com.sun.jdmk", module: "jmxtools"
+            exclude group: "com.sun.jmx", module: "jmxri"
+            exclude group: "javax.mail", module: "mail"
+            exclude group: "javax.jms", module: "jms"
+        }
+		compile "org.slf4j:slf4j-log4j12:$slf4jVersion"
+
+		testCompile "junit:junit:$junitVersion"
+		testCompile "org.mockito:mockito-all:$mockitoVersion"
+        testCompile "org.hamcrest:hamcrest-all:$hamcrestVersion"
+        testCompile "org.springframework:spring-test:$springVersion"
+        testCompile "org.hsqldb:hsqldb:2.0.0"
+    }
+
+	// enable all compiler warnings; individual projects may customize further
+	ext.xLintArg = '-Xlint:all'
+	[compileJava, compileTestJava]*.options*.compilerArgs = [xLintArg]
+
+	task sourcesJar(type: Jar) {
+		classifier = 'sources'
+		from sourceSets.main.allJava
+	}
+
+	task javadocJar(type: Jar) {
+		classifier = 'javadoc'
+		from javadoc
+	}
+
+	artifacts {
+		archives sourcesJar
+		archives javadocJar
+	}
+}
+
+
+project('services') {
+	description = 'Core Services'
+	dependencies {
+		compile "org.springframework.data:spring-data-jpa:$springDataVersion"
+		compile "org.springframework:spring-orm:$springVersion"
+		compile "org.springframework:spring-core:$springVersion"
+		
+		compile "org.hibernate.javax.persistence:hibernate-jpa-2.0-api:$hibernateJavaxVersion"
+		compile "org.hibernate:hibernate-entitymanager:$hibernateVersion"
+
+		compile "joda-time:joda-time:$jodatimeVersion"
+		compile "org.aspectj:aspectjweaver:$aspectjVersion"
+
+        compile "com.mysema.querydsl:querydsl-apt:$querydslVersion"
+        compile "com.mysema.querydsl:querydsl-jpa:$querydslVersion"
+    }
+
+    compileJava {
+        doFirst {
+            // Need to manually create the output directory so it exists prior to the queryDls code generator.
+            destinationDir.mkdirs()
+
+            Map otherArgs = [
+                    includeAntRuntime: false,
+                    destdir: destinationDir,
+                    classpath: configurations.compile.asPath,
+                    sourcepath: '',
+                    target: targetCompatibility,
+                    source: sourceCompatibility
+            ]
+            options.compilerArgs = [
+                    '-processor', 'com.mysema.query.apt.jpa.JPAAnnotationProcessor',
+                    '-s', "${destinationDir.absolutePath}".toString()
+            ]
+            Map antOptions = otherArgs + options.optionMap()
+            ant.javac(antOptions) {
+                source.addToAntBuilder(ant, 'src', FileCollection.AntType.MatchingTask)
+                options.compilerArgs.each {value ->
+                    compilerarg(value: value)
+                }
+            }
+        }
+    }
+}
+
+
+loadConfiguration()
+
+def loadConfiguration() {
+    def environment = hasProperty('env') ? env : 'dev'
+    project.ext.environment = environment
+    println "Environment is set to $environment"
+
+    def configFile = file('config.groovy')
+    def config = new ConfigSlurper(environment).parse(configFile.toURL())
+    project.ext.config = config
+}
+
