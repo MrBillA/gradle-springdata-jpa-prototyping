@@ -9,6 +9,8 @@
 
     <import resource="infrastructure.xml" />
 
+	<context:component-scan base-package="org.springframework.data.jpa.showcase.core" annotation-config="true"/>
+
     <jpa:repositories base-package="org.springframework.data.jpa.showcase.after" />
 
 </beans>

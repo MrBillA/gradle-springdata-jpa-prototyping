@@ -9,6 +9,7 @@
 
     <import resource="infrastructure.xml" />
 
-    <context:component-scan base-package="org.springframework.data.jpa.showcase.before" />
+	<context:component-scan base-package="org.springframework.data.jpa.showcase.before" />
+	<context:component-scan base-package="org.springframework.data.jpa.showcase.core" />
 
 </beans>

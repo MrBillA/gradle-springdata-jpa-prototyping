@@ -13,7 +13,7 @@ subprojects { subproject ->
 	apply plugin: 'java'
 	apply plugin: 'idea'
 
-    group = 'com.thomsonreuters.jpa.example'
+    group = 'org.springframework.data.jpa.showcase'
     version = "$version"
 
     sourceCompatibility=1.6
@@ -41,6 +41,7 @@ subprojects { subproject ->
     sourceSets.all {
         println name
     }
+
 
     repositories {
         mavenCentral()
@@ -85,6 +86,12 @@ subprojects { subproject ->
 
 
 project('services') {
+	configurations {
+		jpamodelgen
+		querydsl
+	}
+	println configurations.compile + configurations.querydsl
+
 	description = 'Core Services'
 	dependencies {
 		compile "org.springframework.data:spring-data-jpa:$springDataVersion"
@@ -94,39 +101,50 @@ project('services') {
 		compile "org.hibernate.javax.persistence:hibernate-jpa-2.0-api:$hibernateJavaxVersion"
 		compile "org.hibernate:hibernate-entitymanager:$hibernateVersion"
 
+		runtime group: 'com.h2database', name: 'h2', version: '1.3.167'
+		compile group: 'org.slf4j', name: 'slf4j-api', version: slf4jVersion
+		runtime group: 'org.slf4j', name: 'slf4j-simple', version: slf4jVersion
+
 		compile "joda-time:joda-time:$jodatimeVersion"
 		compile "org.aspectj:aspectjweaver:$aspectjVersion"
 
-        compile "com.mysema.querydsl:querydsl-apt:$querydslVersion"
-        compile "com.mysema.querydsl:querydsl-jpa:$querydslVersion"
-    }
+		// QueryDSL
+		compile "com.mysema.querydsl:querydsl-jpa:$querydslVersion"
+		querydsl "com.mysema.querydsl:querydsl-apt:$querydslVersion"
 
-    compileJava {
-        doFirst {
-            // Need to manually create the output directory so it exists prior to the queryDls code generator.
-            destinationDir.mkdirs()
+		// Criteria
+		jpamodelgen group: 'org.hibernate', name: 'hibernate-jpamodelgen', version: '1.2.0.Final'
 
-            Map otherArgs = [
-                    includeAntRuntime: false,
-                    destdir: destinationDir,
-                    classpath: configurations.compile.asPath,
-                    sourcepath: '',
-                    target: targetCompatibility,
-                    source: sourceCompatibility
-            ]
-            options.compilerArgs = [
-                    '-processor', 'com.mysema.query.apt.jpa.JPAAnnotationProcessor',
-                    '-s', "${destinationDir.absolutePath}".toString()
-            ]
-            Map antOptions = otherArgs + options.optionMap()
-            ant.javac(antOptions) {
-                source.addToAntBuilder(ant, 'src', FileCollection.AntType.MatchingTask)
-                options.compilerArgs.each {value ->
-                    compilerarg(value: value)
-                }
-            }
-        }
-    }
+		// LiquidForm
+		compile (group: 'com.google.code.liquidform', name: 'liquidform.jpa', version: '1.0.0') {
+			exclude group: 'javax.persistence', module: 'persistence-api'
+		}
+	}
+
+	task generateMetamodel(type: JavaCompile, group: 'build', description: 'Generates the JPA2 static metamodel classes') {
+		source = sourceSets.main.java
+		classpath = configurations.compile + configurations.jpamodelgen
+		options.compilerArgs = [
+				"-proc:only"
+		]
+		destinationDir = sourceSets.main.java.srcDirs.iterator().next()
+		dependencyCacheDir = compileJava.dependencyCacheDir
+	}
+	compileJava.dependsOn generateMetamodel
+
+	task generateQueryDSL(type: JavaCompile, group: 'build', description: 'Generates the QueryDSL query types') {
+		source = sourceSets.main.java
+		classpath = configurations.compile + configurations.querydsl
+		options.compilerArgs = [
+				"-proc:only",
+				"-processor", "com.mysema.query.apt.jpa.JPAAnnotationProcessor"
+		]
+		destinationDir = sourceSets.main.java.srcDirs.iterator().next()
+		dependencyCacheDir = compileJava.dependencyCacheDir
+	}
+
+	compileJava.dependsOn generateQueryDSL
+
 }
 
 

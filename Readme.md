@@ -1,3 +1,7 @@
+Status:
+  This project compiles however unit tests fail when executed from gradle command line.  Interestingly, they pass if run
+  from Idea. Currently don't know why!
+
 
 Projects to see:
 https://github.com/SpringSource/spring-data-rest-webmvc
