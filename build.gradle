@@ -8,6 +8,10 @@ description = 'Simple Spring App'
 apply plugin: 'base'
 apply plugin: 'idea'
 
+// Configuration testing. add -Penv=dev|prod|test. See config.groovy
+loadConfiguration()
+
+
 subprojects { subproject ->
 
 	apply plugin: 'java'
@@ -36,7 +40,6 @@ subprojects { subproject ->
                 srcDirs = ['src/test/resources']
             }
         }
-		generated
     }
 
     sourceSets.all {
@@ -136,24 +139,39 @@ project('services') {
 //	compileJava.classpath += configurations.jpamodelgen
 
 	task generateQueryDSL(type: JavaCompile, group: 'build', description: 'Generates the QueryDSL query types') {
+		// Place the output of the QueryDSL predicate processor in a new location.
+		def outputDir = file("$buildDir/generated-src")
+		outputs.dir outputDir
+		doFirst {
+			// Make sure the directory exists.
+			outputDir.exists() || outputDir.mkdirs()
+		}
+
 		source = sourceSets.main.java
 		classpath = configurations.compile + configurations.querydsl
-		println "GenerateQueryDSL classpath: " +configurations.querydsl
+
 		options.compilerArgs = [
 				"-proc:only",
 				"-processor", "com.mysema.query.apt.jpa.JPAAnnotationProcessor"
 		]
-		destinationDir = sourceSets.main.java.srcDirs.iterator().next()
+		// Generated code goes into the generated code directory.
+		//destinationDir = sourceSets.main.java.srcDirs.iterator().next()
+		destinationDir = outputDir
+
 		dependencyCacheDir = compileJava.dependencyCacheDir
+
 	}
 
 	compileJava.dependsOn generateQueryDSL
-//	compileJava.classpath += configurations.querydsl
+	compileJava.source generateQueryDSL.outputs.files, sourceSets.main.java
 
+	// Don't do a one pass code generation and compile, couldn't get it to work.
+	//	compileJava.classpath += configurations.querydsl
+
+	// Dump the configuration settings from the parent.
+	println  parent.ext.config
 }
 
-
-loadConfiguration()
 
 def loadConfiguration() {
     def environment = hasProperty('env') ? env : 'dev'
