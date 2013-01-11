@@ -36,10 +36,11 @@ subprojects { subproject ->
                 srcDirs = ['src/test/resources']
             }
         }
+		generated
     }
 
     sourceSets.all {
-        println name
+     //   println name
     }
 
 
@@ -90,12 +91,13 @@ project('services') {
 		jpamodelgen
 		querydsl
 	}
-	println configurations.compile + configurations.querydsl
+	println "Project configurations: " + configurations.compile + configurations.querydsl
 
 	description = 'Core Services'
 	dependencies {
 		compile "org.springframework.data:spring-data-jpa:$springDataVersion"
 		compile "org.springframework:spring-orm:$springVersion"
+		compile "org.springframework:spring-context:$springVersion"
 		compile "org.springframework:spring-core:$springVersion"
 		
 		compile "org.hibernate.javax.persistence:hibernate-jpa-2.0-api:$hibernateJavaxVersion"
@@ -130,11 +132,13 @@ project('services') {
 		destinationDir = sourceSets.main.java.srcDirs.iterator().next()
 		dependencyCacheDir = compileJava.dependencyCacheDir
 	}
-	compileJava.dependsOn generateMetamodel
+//	compileJava.dependsOn generateMetamodel
+//	compileJava.classpath += configurations.jpamodelgen
 
 	task generateQueryDSL(type: JavaCompile, group: 'build', description: 'Generates the QueryDSL query types') {
 		source = sourceSets.main.java
 		classpath = configurations.compile + configurations.querydsl
+		println "GenerateQueryDSL classpath: " +configurations.querydsl
 		options.compilerArgs = [
 				"-proc:only",
 				"-processor", "com.mysema.query.apt.jpa.JPAAnnotationProcessor"
@@ -144,6 +148,7 @@ project('services') {
 	}
 
 	compileJava.dependsOn generateQueryDSL
+//	compileJava.classpath += configurations.querydsl
 
 }
 
